@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookings - SmartRail</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary: #4338ca;
+            --bg: #f8fafc;
+        }
+
+        body { 
+            background: var(--bg); 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            color: #1e293b;
+        }
+
+        .navbar { 
+            background: white !important;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 15px 0;
+        }
+
+        /* Ticket Styled Card */
+        .booking-card { 
+            border-radius: 24px; 
+            border: none; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            margin-bottom: 25px; 
+            background: #fff;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: row;
+        }
+
+        .booking-card:hover { 
+            transform: translateY(-4px); 
+            box-shadow: 0 12px 24px rgba(0,0,0,0.06); 
+            border-color: var(--primary);
+        }
+
+        .pnr-section {
+            background: #f8faff;
+            padding: 30px 20px;
+            text-align: center;
+            border-right: 2px dashed #e2e8f0;
+            min-width: 140px;
+            position: relative;
+        }
+
+        /* Punch-hole circles for ticket look */
+        .pnr-section::before, .pnr-section::after {
+            content: '';
+            position: absolute;
+            right: -11px;
+            width: 20px;
+            height: 20px;
+            background: var(--bg);
+            border-radius: 50%;
+        }
+        .pnr-section::before { top: -10px; }
+        .pnr-section::after { bottom: -10px; }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-confirmed { color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; }
+        .status-cancelled { color: #991b1b; background: #fee2e2; border: 1px solid #fecaca; }
+
+        .otp-input-modern {
+            letter-spacing: 15px;
+            font-size: 2.5rem;
+            text-align: center;
+            font-weight: 900;
+            border-radius: 16px;
+            border: 2px solid #e2e8f0;
+            background: #f1f5f9;
+            color: var(--primary);
+            padding: 15px;
+        }
+
+        .btn-action { border-radius: 12px; font-weight: 600; padding: 10px 15px; transition: all 0.2s; }
+        
+        @media (max-width: 768px) {
+            .booking-card { flex-direction: column; }
+            .pnr-section { border-right: none; border-bottom: 2px dashed #e2e8f0; }
+            .pnr-section::before, .pnr-section::after { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-light sticky-top shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold text-primary" href="dashboard.html">
+            <i class="bi bi-chevron-left me-1"></i> My Bookings
+        </a>
+        <div class="dropdown">
+            <button class="btn btn-light rounded-circle p-2" type="button" onclick="loadBookings()">
+                <i class="bi bi-arrow-clockwise fs-5"></i>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="container mb-5">
+    <div class="text-center mb-5">
+        <h2 class="fw-black mb-1">Your Journeys</h2>
+        <p class="text-muted">Manage your tickets and travel history</p>
+    </div>
+    
+    <div id="bookingsList">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3 text-muted">Fetching your tickets...</p>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="otpModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 28px;">
+            <div class="modal-body p-5 text-center">
+                <div class="mb-4">
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="bi bi-shield-lock-fill fs-1"></i>
+                    </div>
+                </div>
+                <h4 class="fw-bold mb-2">Verify Cancellation</h4>
+                <p class="text-muted small mb-4 px-3">We've sent a 6-digit code to your email for PNR: <span id="displayPnr" class="text-dark fw-bold"></span></p>
+                
+                <input type="text" id="otpValue" class="form-control otp-input-modern mb-4 shadow-none" maxlength="6" placeholder="000000">
+                <input type="hidden" id="cancelingPnr">
+                
+                <div class="d-grid gap-3">
+                    <button id="confirmBtn" class="btn btn-danger btn-lg fw-bold rounded-pill py-3 shadow" onclick="verifyOtpAndCancel()">
+                        CONFIRM CANCELLATION
+                    </button>
+                    <button class="btn btn-link text-decoration-none text-muted fw-bold" data-bs-dismiss="modal">I've changed my mind</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// MATTINA EDAM: window.location.origin-a eduthutu Localhost port 5000 add panniruken
+const API_BASE = "http://localhost:5000";
+const token = localStorage.getItem("token");
+const userId = localStorage.getItem("user_id");
+
+if(!token || !userId) { window.location.href="login.html"; }
+
+async function loadBookings() {
+    try {
+        const res = await fetch(`${API_BASE}/api/bookings/user/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const list = await res.json();
+        const container = document.getElementById("bookingsList");
+
+        if (!res.ok || list.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5 bg-white rounded-4 shadow-sm border p-5">
+                    <i class="bi bi-ticket-detailed display-1 text-muted opacity-25"></i>
+                    <h5 class="fw-bold mt-4">No bookings found</h5>
+                    <p class="text-muted small mb-4">You haven't booked any journeys yet.</p>
+                    <a href="dashboard.html" class="btn btn-primary rounded-pill px-4 fw-bold">Plan a Journey</a>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = list.map(b => `
+            <div class="booking-card">
+                <div class="pnr-section">
+                    <div class="small text-uppercase fw-bold text-muted ls-1 mb-1">PNR</div>
+                    <div class="h4 fw-black text-primary mb-0">${b.pnr}</div>
+                </div>
+                
+                <div class="flex-grow-1 p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="fw-black text-dark mb-1">${b.train_name}</h5>
+                            <div class="d-flex align-items-center text-muted small fw-bold">
+                                <span>${b.source}</span>
+                                <i class="bi bi-arrow-right mx-2 text-primary"></i>
+                                <span>${b.destination}</span>
+                            </div>
+                        </div>
+                        <span class="status-badge ${b.status === 'CONFIRMED' ? 'status-confirmed' : 'status-cancelled'}">
+                            ${b.status}
+                        </span>
+                    </div>
+                    
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="small text-secondary mb-1">
+                                <i class="bi bi-calendar3 me-2"></i>${new Date(b.booking_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </div>
+                            <div class="fw-bold text-dark fs-5">₹${b.total_price}</div>
+                        </div>
+                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                            ${b.status === 'CONFIRMED' ? `
+                                <div class="d-flex gap-2 justify-content-md-end">
+                                    <button class="btn btn-light btn-action" onclick="downloadTicket('${b.pnr}')" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-action border-0" onclick="initiateCancel('${b.pnr}', this)">
+                                        CANCEL
+                                    </button>
+                                </div>
+                            ` : `
+                                <span class="text-muted small fw-bold"><i class="bi bi-info-circle me-1"></i> Refund in progress</span>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join("");
+    } catch(err) {
+        document.getElementById("bookingsList").innerHTML = `<div class="alert alert-danger rounded-4">Server connection error.</div>`;
+    }
+}
+
+async function initiateCancel(pnr, btn) {
+    if(confirm(`Send OTP to your email for PNR: ${pnr}?`)) {
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>...`;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/bookings/send-cancel-otp`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({ pnr })
+            });
+
+            const result = await res.json();
+            
+            if(res.ok || result.success) {
+                document.getElementById("cancelingPnr").value = pnr;
+                document.getElementById("displayPnr").innerText = pnr;
+                new bootstrap.Modal(document.getElementById('otpModal')).show();
+            } else {
+                alert(result.message || "Failed to send OTP");
+            }
+        } catch(err) {
+            // Fallback for dev environment
+            document.getElementById("cancelingPnr").value = pnr;
+            document.getElementById("displayPnr").innerText = pnr;
+            new bootstrap.Modal(document.getElementById('otpModal')).show();
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+async function verifyOtpAndCancel() {
+    const pnr = document.getElementById("cancelingPnr").value;
+    const otp = document.getElementById("otpValue").value;
+    const btn = document.getElementById("confirmBtn");
+
+    if(!otp || otp.length !== 6) { alert("Please enter 6-digit OTP"); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Cancelling...`;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/bookings/cancel`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ pnr, otp })
+        });
+
+        const result = await res.json();
+        if(res.ok) {
+            alert("✅ Ticket cancelled successfully!");
+            location.reload();
+        } else {
+            alert(result.message || "Invalid OTP");
+            btn.disabled = false;
+            btn.innerHTML = "CONFIRM CANCELLATION";
+        }
+    } catch(err) {
+        alert("Server error.");
+        btn.disabled = false;
+        btn.innerHTML = "CONFIRM CANCELLATION";
+    }
+}
+
+function downloadTicket(pnr) {
+    window.location.href = `${API_BASE}/api/bookings/ticket/${pnr}`;
+}
+
+window.onload = loadBookings;
+</script>
+</body>
+</html>

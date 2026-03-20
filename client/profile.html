@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - SmartRail</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .profile-card { max-width: 480px; margin: 40px auto; border-radius: 24px; border: none; overflow: hidden; }
+        .profile-header { 
+            background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+        .avatar-wrapper {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 3rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .section-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 15px; display: block; }
+        .action-box { background: #f1f5f9; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .security-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        .form-control { border-radius: 10px; padding: 12px; border: 1px solid #e2e8f0; }
+        .form-control:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); border-color: #6366f1; }
+        .hidden { display: none !important; }
+        .btn-modern { padding: 12px; border-radius: 12px; font-weight: 600; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-light bg-white border-bottom shadow-sm py-3">
+    <div class="container">
+        <a class="navbar-brand fw-bold text-primary" href="dashboard.html">
+            <i class="bi bi-chevron-left me-1"></i> Dashboard
+        </a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card profile-card shadow-lg">
+        <div class="profile-header">
+            <div class="avatar-wrapper">
+                <i class="bi bi-person-fill"></i>
+            </div>
+            <h4 id="displayUserName" class="fw-bold mb-1">Loading...</h4>
+            <p id="displayUserEmail" class="opacity-75 small mb-0">...</p>
+        </div>
+
+        <div class="card-body p-4 p-md-5">
+            <span class="section-title">Account Security</span>
+            <div class="security-box">
+                
+                <div id="otpStep">
+                    <p class="small text-warning-emphasis fw-semibold mb-3">
+                        <i class="bi bi-info-circle me-1"></i> Verify identity to change password
+                    </p>
+                    <button id="sendOtpBtn" class="btn btn-warning w-100 btn-modern shadow-sm" onclick="sendOTP()">
+                        <i class="bi bi-envelope-at"></i> Send OTP to Email
+                    </button>
+                </div>
+
+                <div id="verifyStep" class="hidden">
+                    <div class="alert alert-success border-0 small py-2 rounded-3 mb-3">
+                        <i class="bi bi-check-circle-fill me-1"></i> OTP Sent! Check your inbox.
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" id="otpInput" class="form-control text-center fw-bold fs-5" placeholder="Enter 6-Digit OTP" maxlength="6">
+                    </div>
+                    <button id="verifyBtn" class="btn btn-primary w-100 btn-modern shadow-sm" onclick="verifyOTP()">
+                        <i class="bi bi-shield-check"></i> Verify OTP
+                    </button>
+                </div>
+
+                <div id="passwordStep" class="hidden">
+                    <div class="alert alert-success border-0 small py-2 rounded-3 mb-3">
+                        <i class="bi bi-unlock-fill me-1"></i> OTP Verified. Enter new password.
+                    </div>
+                    <div class="mb-2">
+                        <input type="password" id="newPass" class="form-control" placeholder="New Password">
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" id="confirmPass" class="form-control" placeholder="Confirm New Password">
+                    </div>
+                    
+                    <button id="updateBtn" class="btn btn-success w-100 btn-modern shadow-sm" onclick="updatePassword()">
+                        Update Password
+                    </button>
+                </div>
+                
+            </div>
+
+            <span class="section-title">Quick Actions</span>
+            <div class="action-box">
+                <button class="btn btn-white bg-white text-dark w-100 btn-modern border shadow-sm mb-3" onclick="window.location.href='my-bookings.html'">
+                    <i class="bi bi-journal-text text-primary"></i> View My Bookings
+                </button>
+                <button class="btn btn-danger w-100 btn-modern shadow-sm" onclick="logout()">
+                    <i class="bi bi-power"></i> Logout Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = "http://localhost:5000"; 
+    const token = localStorage.getItem("token");
+    const userEmail = localStorage.getItem("user_email");
+    const userId = localStorage.getItem("user_id");
+
+    // MISSING LOGIC ADDED: Login aagama yaraachu vandha veliya anupidum
+    if(!token || !userId) { window.location.href="login.html"; }
+
+    let serverOTP = ""; 
+
+    document.getElementById("displayUserName").innerText = localStorage.getItem("user_name") || "Railway User";
+    document.getElementById("displayUserEmail").innerText = userEmail || "Email Not Found";
+
+    // STEP 1: Send OTP to email
+    async function sendOTP() {
+        if(!userEmail) return alert("User email kidaikala!");
+
+        const btn = document.getElementById("sendOtpBtn");
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Sending...`;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/bookings/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                serverOTP = data.otp; 
+                document.getElementById("otpStep").classList.add("hidden");
+                document.getElementById("verifyStep").classList.remove("hidden");
+            } else {
+                alert("❌ OTP anupa mudiyala!");
+                btn.disabled = false;
+                btn.innerHTML = `<i class="bi bi-envelope-at"></i> Send OTP to Email`;
+            }
+        } catch (err) {
+            alert("❌ Server connection error!");
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-envelope-at"></i> Send OTP to Email`;
+        }
+    }
+
+    // STEP 2: Validate OTP only
+    function verifyOTP() {
+        const userEnteredOtp = document.getElementById("otpInput").value;
+        const btn = document.getElementById("verifyBtn");
+
+        if(!userEnteredOtp) return alert("OTP type pannunga!");
+        if(userEnteredOtp != serverOTP) {
+            alert("❌ Thappana OTP! Please check your email.");
+            return;
+        }
+
+        // OTP Correct ah irundha, Step 3 ku pogum
+        document.getElementById("verifyStep").classList.add("hidden");
+        document.getElementById("passwordStep").classList.remove("hidden");
+    }
+
+    // STEP 3: Change Password
+    async function updatePassword() {
+        const newPass = document.getElementById("newPass").value;
+        const confirmPass = document.getElementById("confirmPass").value;
+
+        if(newPass.length < 6) return alert("Password min 6 characters irukanum!");
+        if(newPass !== confirmPass) return alert("Passwords match aagala!");
+
+        const btn = document.getElementById("updateBtn");
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Updating...`;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ userId, newPass })
+            });
+
+            if (res.ok) {
+                alert("✅ Password successfully changed! Please login again.");
+                logout(); // Password mathina aprom login page ku kondu poidradhu safe
+            } else {
+                alert("❌ Update failed! Backend route check pannunga.");
+                btn.disabled = false;
+                btn.innerText = "Update Password";
+            }
+        } catch (err) {
+            alert("❌ Server Error!");
+            btn.disabled = false;
+            btn.innerText = "Update Password";
+        }
+    }
+
+    function logout() { 
+        localStorage.clear(); 
+        window.location.href = "login.html"; 
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

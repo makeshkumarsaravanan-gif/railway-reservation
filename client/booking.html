@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Train Seat Booking - SmartRail</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-blue: #4338ca;
+            --booked-red: #fee2e2;
+            --booked-text: #dc2626;
+        }
+
+        body { background-color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+        .hidden { display: none; }
+        
+        /* Coach Layout Styles */
+        .coach-container { 
+            background: #f1f5f9; 
+            padding: 25px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 20px; 
+            max-width: 700px; 
+            margin: 0 auto; 
+            overflow-x: auto; 
+        }
+        .compartment { 
+            display: flex; 
+            justify-content: space-between; 
+            background: #fff; 
+            margin-bottom: 20px; 
+            padding: 15px; 
+            border-radius: 12px; 
+            border-left: 5px solid var(--primary-blue); 
+            min-width: 580px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .main-berths { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(2, 50px); gap: 12px; }
+        .side-berths { display: grid; grid-template-rows: repeat(2, 50px); gap: 12px; margin-left: 40px; border-left: 2px dashed #cbd5e1; padding-left: 25px; }
+        
+        /* Seat Styling */
+        .seat { 
+            width: 60px; 
+            height: 50px; 
+            background: #fff; 
+            border: 1.5px solid #cbd5e1; 
+            border-radius: 8px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer; 
+            font-size: 13px; 
+            font-weight: 700; 
+            transition: all 0.2s ease; 
+        }
+        .seat span { font-size: 10px; color: #64748b; font-weight: 400; }
+        .seat:hover:not(.booked) { border-color: var(--primary-blue); background: #eef2ff; }
+        
+        .selected { background: var(--primary-blue) !important; color: white !important; border-color: var(--primary-blue) !important; } 
+        .selected span { color: rgba(255,255,255,0.8) !important; }
+
+        .booked { background: var(--booked-red) !important; border-color: #fca5a5 !important; color: var(--booked-text) !important; cursor: not-allowed; opacity: 0.8; }
+        .booked span { color: var(--booked-text) !important; }
+        
+        .legend-box { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #cbd5e1; }
+        .sticky-summary { position: sticky; bottom: 20px; z-index: 100; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-light bg-white border-bottom shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold text-primary" href="dashboard.html">
+            <i class="bi bi-arrow-left-circle me-2"></i>Seat Selection
+        </a>
+        <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="container mb-5">
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-primary text-white">
+        <div class="row align-items-center text-center text-md-start">
+            <div class="col-md-8">
+                <h3 id="trainInfo" class="fw-bold mb-1 text-uppercase"><i class="bi bi-train-front-fill me-2"></i>Loading...</h3>
+                <p id="priceInfo" class="mb-0 opacity-75">Fare Details Loading...</p>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0 text-white">
+                <span class="badge bg-white text-primary px-3 py-2 rounded-pill fw-bold">MAX 4 BERTHS</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="seatSelection" class="card border-0 shadow-sm p-4 rounded-4">
+        <div class="d-flex flex-wrap justify-content-center gap-4 mb-4 small fw-semibold text-muted">
+            <div class="d-flex align-items-center gap-2"><div class="legend-box bg-white"></div> Available</div>
+            <div class="d-flex align-items-center gap-2"><div class="legend-box bg-danger bg-opacity-10 border-danger border-opacity-25"></div> Booked</div>
+            <div class="d-flex align-items-center gap-2"><div class="legend-box bg-primary"></div> Selected</div>
+        </div>
+
+        <div class="coach-container mb-4 shadow-inner" id="coachBody">
+            <div class="text-center p-5"><div class="spinner-border text-primary"></div></div>
+        </div>
+        
+        <div class="card bg-light border-0 rounded-4 p-4 text-center sticky-summary shadow">
+            <h5 id="selectedCount" class="fw-bold mb-3 text-dark">Berths: 0 | Total: ₹0</h5>
+            <button class="btn btn-primary btn-lg w-100 py-3 rounded-3 fw-bold shadow" onclick="goToPassengerDetails()">
+                PROCEED TO PASSENGERS <i class="bi bi-arrow-right-short"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="passengerDetails" class="card border-0 shadow-lg p-4 hidden rounded-4 mt-2">
+        <div class="text-center mb-4">
+            <h4 class="fw-bold text-primary mb-1">Passenger Information</h4>
+            <p class="text-muted small">Enter traveler details to confirm booking</p>
+        </div>
+        
+        <div id="passengerForm"></div>
+        
+        <div class="alert alert-info border-0 rounded-3 d-flex align-items-center small py-2 mt-3">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <div>OTP verification will be sent to the first passenger's email.</div>
+        </div>
+
+        <div class="row g-3 mt-2">
+            <div class="col-6">
+                <button class="btn btn-outline-secondary w-100 py-3 rounded-3 fw-bold" onclick="location.reload()">
+                    <i class="bi bi-arrow-left"></i> RESET
+                </button>
+            </div>
+            <div class="col-6">
+                <button id="verifyBtn" class="btn btn-success w-100 py-3 rounded-3 fw-bold shadow" onclick="verifyAndProceed()">
+                    VERIFY & PAY <i class="bi bi-shield-check"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// MATTINA EDAM: window.location.origin-a eduthutu Localhost port 5000 add panniruken
+const API_BASE = "http://localhost:5000"; 
+const token = localStorage.getItem("token");
+const trainId = localStorage.getItem("selected_train");
+const userId = localStorage.getItem("user_id");
+
+let selectedSeats = [], seatPrice = 0;
+
+if (!token || !trainId) { window.location.href="login.html"; }
+
+async function loadTrainInfo() {
+    try {
+        const res = await fetch(`${API_BASE}/api/trains/${trainId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await res.json();
+        let train = Array.isArray(result) ? result[0] : (result.data ? result.data : result);
+        
+        if (train) {
+            document.getElementById("trainInfo").innerHTML = `<i class="bi bi-train-front-fill me-2"></i>${train.train_name}`;
+            seatPrice = train.price;
+            document.getElementById("priceInfo").innerText = `Fare: ₹${seatPrice} per berth`;
+            loadSeats(); 
+        }
+    } catch(err) { 
+        document.getElementById("trainInfo").innerText = "Connection Error!";
+    }
+}
+
+async function loadSeats() {
+    try {
+        const res = await fetch(`${API_BASE}/api/bookings/booked/${trainId}`);
+        const data = await res.json();
+        const booked = data.bookedSeats || [];
+        const coach = document.getElementById("coachBody");
+        coach.innerHTML = "";
+        
+        let seatNum = 1;
+        const berthTypes = ["LB", "MB", "UB", "LB", "MB", "UB", "SL", "SU"];
+        
+        for (let i = 0; i < 5; i++) {
+            const comp = document.createElement("div");
+            comp.className = "compartment";
+            const main = document.createElement("div");
+            main.className = "main-berths";
+            for (let j = 0; j < 6; j++) createSeat(seatNum++, berthTypes[j], main, booked);
+            const side = document.createElement("div");
+            side.className = "side-berths";
+            for (let k = 6; k < 8; k++) createSeat(seatNum++, berthTypes[k], side, booked);
+            comp.append(main, side);
+            coach.appendChild(comp);
+        }
+    } catch(err) { console.error("Error loading seats:", err); }
+}
+
+function createSeat(num, type, parent, booked) {
+    const seat = document.createElement("div");
+    const sStr = num.toString();
+    const isBooked = booked.some(b => b.toString() === sStr);
+    
+    seat.className = isBooked ? "seat booked" : "seat shadow-sm";
+    seat.innerHTML = `${num}<span>${type}</span>`;
+    
+    if (!isBooked) {
+        seat.onclick = () => {
+            if (seat.classList.contains("selected")) {
+                seat.classList.remove("selected");
+                selectedSeats = selectedSeats.filter(s => s !== sStr);
+            } else {
+                if (selectedSeats.length >= 4) return alert("Maximum 4 seats allowed!");
+                seat.classList.add("selected");
+                selectedSeats.push(sStr);
+            }
+            document.getElementById("selectedCount").innerText = `Berths: ${selectedSeats.length} | Total: ₹${selectedSeats.length * seatPrice}`;
+        };
+    }
+    parent.appendChild(seat);
+}
+
+function goToPassengerDetails() {
+    if(selectedSeats.length === 0) return alert("Please select at least one berth!");
+    document.getElementById("seatSelection").classList.add("hidden");
+    document.getElementById("passengerDetails").classList.remove("hidden");
+    window.scrollTo(0,0);
+    
+    const formContainer = document.getElementById("passengerForm");
+    formContainer.innerHTML = selectedSeats.map((s, i) => `
+        <div class="card border-0 bg-light rounded-4 p-3 mb-3 shadow-sm">
+            <h6 class="text-primary fw-bold mb-3"><i class="bi bi-person-fill me-1"></i>Passenger for Berth #${s}</h6>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <input type="text" class="form-control py-2 border-0 shadow-sm rounded-3" placeholder="Full Name" id="name_${i}" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" class="form-control py-2 border-0 shadow-sm rounded-3" placeholder="Age" id="age_${i}" required>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select py-2 border-0 shadow-sm rounded-3" id="gender_${i}">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <input type="email" class="form-control py-2 border-0 shadow-sm rounded-3" placeholder="Email (For OTP)" id="email_${i}" required>
+                </div>
+            </div>
+        </div>`).join("");
+}
+
+async function verifyAndProceed() {
+    const firstEmail = document.getElementById('email_0').value;
+    if (!firstEmail) return alert("Email address is required for the first passenger!");
+
+    const btn = document.getElementById("verifyBtn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Sending...`;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/bookings/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: firstEmail })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            const userOtp = prompt(`A 6-digit OTP has been sent to ${firstEmail}. Enter it here:`);
+            if (userOtp == data.otp) {
+                alert("✅ Verification Successful!");
+                saveBookingData();
+            } else {
+                alert("❌ Invalid OTP. Please try again.");
+                btn.disabled = false;
+                btn.innerHTML = `VERIFY & PAY <i class="bi bi-shield-check"></i>`;
+            }
+        } else {
+            alert("❌ Failed to send OTP. Please check your email.");
+            btn.disabled = false;
+            btn.innerHTML = `VERIFY & PAY <i class="bi bi-shield-check"></i>`;
+        }
+    } catch (err) { 
+        alert("❌ Server error. Please check your connection."); 
+        btn.disabled = false; 
+        btn.innerHTML = `VERIFY & PAY <i class="bi bi-shield-check"></i>`;
+    }
+}
+
+function saveBookingData() {
+    const passengers = selectedSeats.map((s, i) => ({
+        name: document.getElementById(`name_${i}`).value,
+        age: document.getElementById(`age_${i}`).value,
+        gender: document.getElementById(`gender_${i}`).value,
+        email: document.getElementById(`email_${i}`).value,
+        seat_number: s
+    }));
+
+    const bookingData = {
+        user_id: userId,
+        train_id: trainId,
+        seats: selectedSeats.length,
+        seat_numbers: selectedSeats,
+        passengers: passengers,
+        total_price: selectedSeats.length * seatPrice
+    };
+
+    localStorage.setItem("bookingData", JSON.stringify(bookingData));
+    window.location.href = "payment.html";
+}
+
+function logout() { localStorage.clear(); window.location.href = "index.html"; }
+loadTrainInfo();
+</script>
+</body>
+</html>
