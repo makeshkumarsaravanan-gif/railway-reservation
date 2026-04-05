@@ -33,9 +33,9 @@ app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
 
-// ✅ 6. Catch-all Route (404 Error varama iruka)
-// User refresh pannaalum correct-a page load aagum
-app.get('*', (req, res) => {
+// ✅ 6. Catch-all Route (Express 5 Fix)
+// '*' ku badhila '(.*)' use panna dhaan Express 5-la crash aagaadhu
+app.get('(.*)', (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
 
