@@ -10,21 +10,19 @@ const SECRET = process.env.JWT_SECRET || "supersecretkey";
 
 // OTP temporary storage
 let cancellationOTPs = {};
-
-// 📧 1. Nodemailer Setup (RENDER STABLE VERSION)
+// 📧 1. Nodemailer Setup (RENDER PORT 587 VERSION)
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com', // Explicit-ah host kudunga
-    port: 465,              // Secure port 465 dhaan Render-la fast-ah irukum
-    secure: true,           // Port 465 use panna true nu irukanum
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Port 587-ku idhu false-la dhaan irukanum
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false // Connection block aaguraadha thadukkum
     },
-    connectionTimeout: 10000, // 10 seconds wait panna solrom (Timeout thadukka)
+    connectionTimeout: 10000, 
     greetingTimeout: 10000
 });
 
