@@ -11,17 +11,21 @@ const SECRET = process.env.JWT_SECRET || "supersecretkey";
 // OTP temporary storage
 let cancellationOTPs = {};
 
-// 📧 1. Nodemailer Setup (UPDATED FOR RENDER)
+// 📧 1. Nodemailer Setup (RENDER STABLE VERSION)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
+    host: 'smtp.gmail.com', // Explicit-ah host kudunga
+    port: 465,              // Secure port 465 dhaan Render-la fast-ah irukum
+    secure: true,           // Port 465 use panna true nu irukanum
     auth: {
-        user: process.env.EMAIL_USER, // Render Env Variables-la irunthu varum
-        pass: process.env.EMAIL_PASS  // Render Env Variables-la irunthu varum
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     },
-    // 🛡️ Render block pannaama iruka indha setting romba mukkiyam
     tls: {
         rejectUnauthorized: false
-    }
+    },
+    connectionTimeout: 10000, // 10 seconds wait panna solrom (Timeout thadukka)
+    greetingTimeout: 10000
 });
 
 // 🛡️ Middleware: Token verification
