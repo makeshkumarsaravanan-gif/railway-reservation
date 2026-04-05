@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Login - Railway Reservation</title>
+    <title>User Login - SmartRail</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -93,21 +93,23 @@
 </div>
 
 <script>
+// ✅ Render Deployment-kaga dynamic API URL
+const API_BASE_URL = window.location.hostname === "localhost" 
+    ? "http://localhost:5000" 
+    : window.location.origin; 
+
 async function login() {
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value.trim();
     const loginBtn = document.getElementById("loginBtn");
 
     if (!email || !password) {
-        alert("Email and Password type pannunga!");
+        alert("Email matrum Password-ah type pannunga!");
         return;
     }
 
     loginBtn.innerText = "Connecting...";
     loginBtn.disabled = true;
-
-    // MATTINA EDAM: Ngrok illama unga local Node.js server (Port 5000) ku point pandradhu
-    const API_BASE_URL = "http://localhost:5000"; 
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -119,6 +121,7 @@ async function login() {
         const data = await response.json();
 
         if (response.ok && data.token) {
+            // ✅ Storing session data
             localStorage.setItem("token", data.token);
             
             if (data.user) {
@@ -130,16 +133,23 @@ async function login() {
             alert("✅ Login Successful!");
             window.location.href = "dashboard.html"; 
         } else {
-            alert("❌ " + (data.message || "Invalid Email or Password"));
+            alert("❌ " + (data.message || "Email illai Password thappu!"));
         }
     } catch (err) {
         console.error("Login Error:", err);
-        alert("❌ Connection Error! Server run aaguranu check pannunga.");
+        alert("❌ Server Connection Fail! Server run aagudhannu check pannunga.");
     } finally {
         loginBtn.innerText = "Login";
         loginBtn.disabled = false;
     }
 }
+
+// ✅ Keyboard "Enter" key support for login
+document.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        login();
+    }
+});
 
 window.onload = () => {
     if(localStorage.getItem("token")) {

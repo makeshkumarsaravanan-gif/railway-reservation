@@ -11,30 +11,40 @@ const authRoute = require("./routes/authRoute");
 
 const app = express(); 
 
-// ✅ Cross-Origin Resource Sharing
+// ✅ 1. CORS Configuration (Render-ku idhu romba mukkiyam)
 app.use(cors());
+
+// ✅ 2. Middleware
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Serving the Frontend (HTML/CSS/JS files must be inside the 'client' folder)
+// ✅ 3. Serving the Frontend
+// 'client' folder-kulla dhaan unga html files irukanum
 app.use(express.static(path.join(__dirname, 'client')));
 
-// ✅ Routes Mapping
+// ✅ 4. API Routes Mapping
 app.use("/api/auth", authRoute);
 app.use("/api/users", userRoutes);
 app.use("/api/trains", trainRoutes);
 app.use("/api/bookings", bookingRoutes);
 
-// ✅ Default route to load the Welcome page
+// ✅ 5. Default route (Welcome page)
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
 
-// ✅ Cleaned up Localhost Binding (Removed Ngrok logic)
+// ✅ 6. Catch-all Route (404 Error varama iruka)
+// User refresh pannaalum correct-a page load aagum
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client', 'index.html'));
+});
+
+// ✅ 7. Render/Local Port Binding
+// Render-la port 0.0.0.0-la listen pannanum
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n======================================`);
-    console.log(`🚀 SmartRail Server is RUNNING!`);
-    console.log(`💻 Open in Browser: http://localhost:${PORT}`);
+    console.log(`🚀 SmartRail Server is LIVE!`);
+    console.log(`📡 Listening on Port: ${PORT}`);
     console.log(`======================================\n`);
 });

@@ -11,12 +11,16 @@ const SECRET = process.env.JWT_SECRET || "supersecretkey";
 // OTP temporary storage
 let cancellationOTPs = {};
 
-// 📧 1. Nodemailer Setup (SECURED)
+// 📧 1. Nodemailer Setup (UPDATED FOR RENDER)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER, // .env file la irunthu varum
-        pass: process.env.EMAIL_PASS  // .env file la irunthu varum
+        user: process.env.EMAIL_USER, // Render Env Variables-la irunthu varum
+        pass: process.env.EMAIL_PASS  // Render Env Variables-la irunthu varum
+    },
+    // 🛡️ Render block pannaama iruka indha setting romba mukkiyam
+    tls: {
+        rejectUnauthorized: false
     }
 });
 
@@ -33,22 +37,26 @@ const verifyToken = (req, res, next) => {
     });
 };
 
-// ⚡ 2. Route: Send Booking OTP (Initial booking process)
+// ⚡ 2. Route: Send Booking OTP
 router.post('/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
+    
     const otp = Math.floor(100000 + Math.random() * 900000);
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
-        subject: 'Railway Ticket Booking OTP',
+        subject: 'Railway Ticket Booking OTP - SmartRail',
         text: `Your OTP for Railway Ticket Booking is: ${otp}. Do not share this with anyone.`
     };
+
     try {
         await transporter.sendMail(mailOptions);
+        // Security check: Live-la OTP-ah json-la anupuradhu unsafe, but ippo unga frontend logic-ku idhu thevai
         res.status(200).json({ success: true, otp: otp });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Email failed" });
+        console.error("Booking OTP Error:", error);
+        res.status(500).json({ success: false, message: "Email sending failed. Check App Password." });
     }
 });
 
@@ -64,7 +72,7 @@ router.post('/send-cancel-otp', verifyToken, async (req, res) => {
         );
 
         if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: "No booking found" });
+            return res.status(404).json({ success: false, message: "No booking found for this PNR" });
         }
 
         const targetEmail = rows[0].email;
@@ -72,7 +80,7 @@ router.post('/send-cancel-otp', verifyToken, async (req, res) => {
         
         cancellationOTPs[pnr] = {
             otp: otp,
-            expires: Date.now() + 300000 
+            expires: Date.now() + 300000 // 5 Minutes expiry
         };
 
         const mailOptions = {
@@ -82,21 +90,12 @@ router.post('/send-cancel-otp', verifyToken, async (req, res) => {
             text: `Your OTP to cancel PNR ${pnr} is: ${otp}. Valid for 5 minutes.`
         };
 
-        // ✅ IMPORTANT: Wait for mail and then RETURN response
         await transporter.sendMail(mailOptions);
-        
-        // Frontend-ku success signal anupuroam
-        return res.status(200).json({ 
-            success: true, 
-            message: "OTP sent successfully" 
-        });
+        return res.status(200).json({ success: true, message: "Cancellation OTP sent to registered email" });
 
     } catch (error) {
-        console.error("Mail Error:", error);
-        // Error vanthaalum return pannanum
-        if (!res.headersSent) {
-            return res.status(500).json({ success: false, message: "Failed to send OTP email" });
-        }
+        console.error("Cancel OTP Error:", error);
+        res.status(500).json({ success: false, message: "Failed to send cancellation OTP" });
     }
 });
 
@@ -105,7 +104,7 @@ router.post('/book', async (req, res) => {
     const { user_id, train_id, seats, seat_numbers, passengers, paymentMethod } = req.body;
 
     if (!user_id || user_id === 'undefined') {
-        return res.status(400).json({ success: false, message: 'Invalid User ID' });
+        return res.status(400).json({ success: false, message: 'Invalid User ID. Please login again.' });
     }
 
     let connection;
@@ -119,7 +118,7 @@ router.post('/book', async (req, res) => {
         const train = trains[0];
         if (train.total_seats < seats) {
             await connection.rollback();
-            return res.status(400).json({ success: false, message: 'Seats full!' });
+            return res.status(400).json({ success: false, message: 'Required seats not available!' });
         }
 
         const total_price = seats * train.price;
@@ -144,9 +143,9 @@ router.post('/book', async (req, res) => {
 
         await connection.commit();
 
-        // ⭐ UPDATED QR LOGIC - ADDED FULL DETAILS ⭐
-        const pNames = passengers.map(p => `${p.name}(${p.age})`).join(", ");
-        const qrContent = `PNR: ${pnr}\nTrain: ${train.train_name}\nRoute: ${train.source}-${train.destination}\nTravelers: ${pNames}`;
+        // 🎫 QR Code & PDF Generation
+        const pNames = passengers.map(p => `${p.name}`).join(", ");
+        const qrContent = `PNR: ${pnr} | Train: ${train.train_name} | Passengers: ${pNames}`;
         const qrImage = await QRCode.toDataURL(qrContent);
 
         const doc = new PDFDocument({ margin: 50 });
@@ -157,16 +156,16 @@ router.post('/book', async (req, res) => {
             const mailOptions = {
                 from: process.env.EMAIL_USER,
                 to: passengers[0].email,
-                subject: `Ticket Confirmed - PNR: ${pnr}`,
-                text: `Ticket Confirmed! PNR: ${pnr}\nTrain: ${train.train_name}`,
-                attachments: [{ filename: `Ticket_${pnr}.pdf`, content: pdfData }]
+                subject: `Booking Confirmed - PNR: ${pnr}`,
+                text: `Happy Journey! Your ticket for ${train.train_name} is confirmed. PNR: ${pnr}`,
+                attachments: [{ filename: `SmartRail_Ticket_${pnr}.pdf`, content: pdfData }]
             };
-            try { await transporter.sendMail(mailOptions); } catch (e) { console.log("Mail error", e); }
+            try { await transporter.sendMail(mailOptions); } catch (e) { console.log("Ticket Mail Error:", e); }
         });
 
-        doc.fontSize(22).text('RAILWAY E-TICKET', { align: 'center', underline: true });
+        doc.fontSize(22).text('SMARTRAIL E-TICKET', { align: 'center', underline: true });
         doc.image(qrImage, 430, 50, { width: 100 });
-        doc.moveDown().fontSize(12).text(`PNR: ${pnr}\nTrain: ${train.train_name}\nStatus: CONFIRMED`);
+        doc.moveDown().fontSize(12).text(`PNR: ${pnr}\nTrain: ${train.train_name}\nRoute: ${train.source} to ${train.destination}\nStatus: CONFIRMED`);
         doc.moveDown().text('PASSENGER DETAILS:');
         passengers.forEach((p, i) => {
             doc.text(`${i + 1}. ${p.name} - Age: ${p.age} - Seat: ${seat_numbers[i]}`);
@@ -177,17 +176,17 @@ router.post('/book', async (req, res) => {
 
     } catch (err) {
         if (connection) await connection.rollback();
-        res.status(500).json({ success: false, message: err.message });
+        console.error("Booking Error:", err);
+        res.status(500).json({ success: false, message: "Database error during booking" });
     } finally {
         if (connection) connection.release();
     }
 });
 
-// ❌ 5. Route: Cancel Ticket (Verifies OTP)
+// ❌ 5. Route: Cancel Ticket
 router.post('/cancel', verifyToken, async (req, res) => {
     const { pnr, otp } = req.body;
     
-    // OTP verification
     const storedData = cancellationOTPs[pnr];
     if (!storedData || storedData.otp != otp) {
         return res.status(400).json({ success: false, message: 'Invalid OTP' });
@@ -210,7 +209,7 @@ router.post('/cancel', verifyToken, async (req, res) => {
         
         if (booking[0].status === 'CANCELLED') {
             await connection.rollback();
-            return res.status(400).json({ success: false, message: 'Already Cancelled' });
+            return res.status(400).json({ success: false, message: 'Ticket already cancelled' });
         }
 
         await connection.query('UPDATE bookings SET status = "CANCELLED" WHERE pnr = ?', [pnr]);
@@ -249,7 +248,7 @@ router.get('/user/:userId', async (req, res) => {
         );
         res.status(200).json(rows);
     } catch (err) {
-        res.status(500).json({ message: "Error" });
+        res.status(500).json({ message: "Error fetching bookings" });
     }
 });
 
@@ -270,16 +269,14 @@ router.get('/ticket/:pnr', async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename=Ticket_${req.params.pnr}.pdf`);
         doc.pipe(res);
 
-        // ⭐ UPDATED QR DATA: ADDED ROUTE AND PASSENGERS ⭐
-        const passList = rows.map(r => `${r.p_name}(${r.age})`).join(", ");
-        const qrData = `PNR: ${rows[0].pnr}\nTrain: ${rows[0].train_name}\nRoute: ${rows[0].source} to ${rows[0].destination}\nPassengers: ${passList}`;
+        const passList = rows.map(r => `${r.p_name}`).join(", ");
+        const qrData = `PNR: ${rows[0].pnr} | Train: ${rows[0].train_name} | Passengers: ${passList}`;
         const qrImage = await QRCode.toDataURL(qrData);
 
-        doc.fontSize(22).text('RAILWAY E-TICKET', { align: 'center', underline: true });
+        doc.fontSize(22).text('SMARTRAIL E-TICKET', { align: 'center', underline: true });
         doc.image(qrImage, 430, 50, { width: 100 }); 
-        doc.moveDown().fontSize(14).text(`PNR: ${rows[0].pnr}\nTrain: ${rows[0].train_name}\nStatus: ${rows[0].status}`);
+        doc.moveDown().fontSize(14).text(`PNR: ${rows[0].pnr}\nTrain: ${rows[0].train_name}\nRoute: ${rows[0].source} to ${rows[0].destination}\nStatus: ${rows[0].status}`);
         
-        // Adding detailed passenger list to PDF for clarity
         doc.moveDown().text('Passenger Details:');
         rows.forEach((r, i) => {
             doc.text(`${i+1}. ${r.p_name} | Age: ${r.age} | Seat: ${r.seat_number}`);
@@ -287,7 +284,7 @@ router.get('/ticket/:pnr', async (req, res) => {
 
         doc.end();
     } catch (err) { 
-        res.status(500).send('Error'); 
+        res.status(500).send('Error generating PDF'); 
     }
 });
 

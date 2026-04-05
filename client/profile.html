@@ -116,12 +116,15 @@
 </div>
 
 <script>
-    const API_BASE = "http://localhost:5000"; 
+    // ✅ Render Deployment dynamic API URL
+    const API_BASE = window.location.hostname === "localhost" 
+        ? "http://localhost:5000" 
+        : window.location.origin; 
+
     const token = localStorage.getItem("token");
     const userEmail = localStorage.getItem("user_email");
     const userId = localStorage.getItem("user_id");
 
-    // MISSING LOGIC ADDED: Login aagama yaraachu vandha veliya anupidum
     if(!token || !userId) { window.location.href="login.html"; }
 
     let serverOTP = ""; 
@@ -129,7 +132,6 @@
     document.getElementById("displayUserName").innerText = localStorage.getItem("user_name") || "Railway User";
     document.getElementById("displayUserEmail").innerText = userEmail || "Email Not Found";
 
-    // STEP 1: Send OTP to email
     async function sendOTP() {
         if(!userEmail) return alert("User email kidaikala!");
 
@@ -150,34 +152,29 @@
                 document.getElementById("otpStep").classList.add("hidden");
                 document.getElementById("verifyStep").classList.remove("hidden");
             } else {
-                alert("❌ OTP anupa mudiyala!");
+                alert("❌ OTP anupa mudiyala! Check server logs.");
                 btn.disabled = false;
                 btn.innerHTML = `<i class="bi bi-envelope-at"></i> Send OTP to Email`;
             }
         } catch (err) {
-            alert("❌ Server connection error!");
+            alert("❌ Server Connection Error!");
             btn.disabled = false;
             btn.innerHTML = `<i class="bi bi-envelope-at"></i> Send OTP to Email`;
         }
     }
 
-    // STEP 2: Validate OTP only
     function verifyOTP() {
         const userEnteredOtp = document.getElementById("otpInput").value;
-        const btn = document.getElementById("verifyBtn");
-
         if(!userEnteredOtp) return alert("OTP type pannunga!");
-        if(userEnteredOtp != serverOTP) {
+        
+        if(userEnteredOtp == serverOTP) {
+            document.getElementById("verifyStep").classList.add("hidden");
+            document.getElementById("passwordStep").classList.remove("hidden");
+        } else {
             alert("❌ Thappana OTP! Please check your email.");
-            return;
         }
-
-        // OTP Correct ah irundha, Step 3 ku pogum
-        document.getElementById("verifyStep").classList.add("hidden");
-        document.getElementById("passwordStep").classList.remove("hidden");
     }
 
-    // STEP 3: Change Password
     async function updatePassword() {
         const newPass = document.getElementById("newPass").value;
         const confirmPass = document.getElementById("confirmPass").value;
@@ -201,7 +198,7 @@
 
             if (res.ok) {
                 alert("✅ Password successfully changed! Please login again.");
-                logout(); // Password mathina aprom login page ku kondu poidradhu safe
+                logout(); 
             } else {
                 alert("❌ Update failed! Backend route check pannunga.");
                 btn.disabled = false;

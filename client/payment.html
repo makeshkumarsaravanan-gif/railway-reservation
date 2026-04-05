@@ -102,8 +102,11 @@
 </div>
 
 <script>
-// MATTINA EDAM: window.location.origin-a eduthutu Localhost port 5000 add panniruken
-const API_BASE = "http://localhost:5000";
+// ✅ Render Deployment dynamic API URL
+const API_BASE = window.location.hostname === "localhost" 
+    ? "http://localhost:5000" 
+    : window.location.origin; 
+
 const token = localStorage.getItem("token");
 const bookingData = JSON.parse(localStorage.getItem("bookingData"));
 
@@ -115,7 +118,7 @@ async function loadSummary() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await res.json();
-        const t = Array.isArray(result) ? result[0] : (result.data || result);
+        const t = result.data || result;
 
         const summaryDiv = document.getElementById("bookingSummary");
         let passengerListHtml = '';
@@ -127,7 +130,7 @@ async function loadSummary() {
                         <div class="small text-muted">${p.gender || ''} | Age: ${p.age}</div>
                     </div>
                     <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">
-                        Seat: ${p.seat_number || (bookingData.seat_numbers ? bookingData.seat_numbers[index] : 'TBA')}
+                        Seat: ${p.seat_number}
                     </span>
                 </div>
             `;
@@ -137,12 +140,12 @@ async function loadSummary() {
             <div class="bg-light rounded-4 p-4 mb-4 border border-primary border-opacity-10">
                 <div class="row align-items-center">
                     <div class="col-7">
-                        <h4 class="fw-black text-primary mb-1">🚂 ${t.train_name || t.name || 'Train Info'}</h4>
-                        <p class="text-muted small mb-0">${t.source || t.from_station || 'N/A'} ➔ ${t.destination || t.to_station || 'N/A'}</p>
+                        <h4 class="fw-black text-primary mb-1">🚂 ${t.train_name}</h4>
+                        <p class="text-muted small mb-0">${t.source} ➔ ${t.destination}</p>
                     </div>
                     <div class="col-5 text-end">
                         <div class="small text-muted fw-bold">TRAIN NO.</div>
-                        <div class="fw-bold fs-5">#${t.train_id || t.id || bookingData.train_id}</div>
+                        <div class="fw-bold fs-5">#${t.id}</div>
                     </div>
                 </div>
             </div>
@@ -169,17 +172,20 @@ async function processPayment(method) {
     try {
         const response = await fetch(`${API_BASE}/api/bookings/book`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-            body: JSON.stringify({ ...bookingData, paymentMethod: method, status: "Success" })
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify({ ...bookingData, paymentMethod: method })
         });
 
         const result = await response.json();
 
-        if (response.ok) {
+        if (response.ok || result.success) {
             document.getElementById("headerTitle").innerText = "Booking Confirmed";
             document.getElementById("headerTitleBox").classList.replace("bg-primary", "bg-success");
             
-            // Inga irukkura E-ticket download link-um API_BASE use pannudhu, so adhuvum correct-a localhost-ku pogum
+            // Ticket confirmed view with download link using API_BASE
             document.getElementById("mainCard").innerHTML = `
                 <div class="card-body p-4 p-md-5 text-center">
                     <div class="success-glow mb-3"><i class="bi bi-patch-check-fill"></i></div>
@@ -190,14 +196,28 @@ async function processPayment(method) {
                         <h1 class="display-3 fw-black text-primary mb-0" style="letter-spacing:4px">${result.pnr}</h1>
                     </div>
                     <div class="row g-3">
-                        <div class="col-sm-6 text-center"><a href="${API_BASE}/api/bookings/ticket/${result.pnr}" target="_blank" class="btn btn-success btn-lg w-100 rounded-pill fw-bold">Download E-Ticket</a></div>
-                        <div class="col-sm-6 text-center"><a href="my-bookings.html" class="btn btn-outline-dark btn-lg w-100 rounded-pill fw-bold">My Bookings</a></div>
+                        <div class="col-sm-6 text-center">
+                            <a href="${API_BASE}/api/bookings/ticket/${result.pnr}" target="_blank" class="btn btn-success btn-lg w-100 rounded-pill fw-bold">
+                                <i class="bi bi-download me-2"></i>Download Ticket
+                            </a>
+                        </div>
+                        <div class="col-sm-6 text-center">
+                            <a href="my-bookings.html" class="btn btn-outline-dark btn-lg w-100 rounded-pill fw-bold">
+                                My Bookings
+                            </a>
+                        </div>
                     </div>
                 </div>`;
             
             localStorage.removeItem("bookingData");
+        } else {
+            alert("❌ Booking Failed: " + (result.message || "Unknown Error"));
+            location.reload();
         }
-    } catch (err) { alert("Payment Server Error!"); }
+    } catch (err) { 
+        alert("❌ Payment Server Error! Terminal logs check pannunga."); 
+        location.reload();
+    }
 }
 
 loadSummary();
