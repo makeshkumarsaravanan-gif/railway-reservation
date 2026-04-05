@@ -33,12 +33,10 @@ app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
 
-// ✅ 6. Catch-all Route (Express 5 Fix)
-// '*' ku badhila '(.*)' use panna dhaan Express 5-la crash aagaadhu
-app.get('(.*)', (req, res) => {
+// Express 6 catch-all (Catch everything)
+app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
-
 // ✅ 7. Render/Local Port Binding
 // Render-la port 0.0.0.0-la listen pannanum
 const PORT = process.env.PORT || 5000;
